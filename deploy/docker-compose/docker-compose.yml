@@ -1,0 +1,247 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fm-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: auth_service
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: fm-redis
+    ports:
+      - "6379:6379"
+
+  auth-service:
+    build:
+      context: ../..
+      dockerfile: services/auth-service/Dockerfile
+    container_name: fm-auth
+    environment:
+      APP_NAME: auth-service
+      HTTP_PORT: 8001
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/auth_service?sslmode=disable
+      JWT_SECRET: supersecret
+      ACCESS_TOKEN_MINUTES: 15
+      REFRESH_TOKEN_HOURS: 720
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8001:8001"
+
+  user-service:
+    build:
+      context: ../..
+      dockerfile: services/user-service/Dockerfile
+    container_name: fm-user
+    environment:
+      APP_NAME: user-service
+      HTTP_PORT: 8002
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/user_service?sslmode=disable
+      JWT_SECRET: supersecret
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8002:8002"
+
+  catalog-service:
+    build:
+      context: ../..
+      dockerfile: services/catalog-service/Dockerfile
+    container_name: fm-catalog
+    environment:
+      APP_NAME: catalog-service
+      HTTP_PORT: 8003
+      LOG_LEVEL: info
+    ports:
+      - "8003:8003"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8003/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  playlist-service:
+    build:
+      context: ../..
+      dockerfile: services/playlist-service/Dockerfile
+    container_name: fm-playlist
+    environment:
+      APP_NAME: playlist-service
+      HTTP_PORT: 8004
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/playlist_service?sslmode=disable
+      JWT_SECRET: supersecret
+      CATALOG_SERVICE_URL: http://catalog-service:8003
+    depends_on:
+      postgres:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8004/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8004:8004"
+
+  library-service:
+    build:
+      context: ../..
+      dockerfile: services/library-service/Dockerfile
+    container_name: fm-library
+    environment:
+      APP_NAME: library-service
+      HTTP_PORT: 8005
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/library_service?sslmode=disable
+      JWT_SECRET: supersecret
+      CATALOG_SERVICE_URL: http://catalog-service:8003
+    depends_on:
+      postgres:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8005/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8005:8005"
+
+  playback-service:
+    build:
+      context: ../..
+      dockerfile: services/playback-service/Dockerfile
+    container_name: fm-playback
+    environment:
+      APP_NAME: playback-service
+      HTTP_PORT: 8006
+      LOG_LEVEL: info
+      REDIS_ADDR: redis:6379
+      REDIS_DB: 0
+      JWT_SECRET: supersecret
+      CATALOG_SERVICE_URL: http://catalog-service:8003
+      SESSION_TTL_MINUTES: 720
+    depends_on:
+      redis:
+        condition: service_started
+      catalog-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8006/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8006:8006"
+
+  minio:
+    image: minio/minio:RELEASE.2024-01-18T22-51-28Z
+    container_name: fm-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  media-service:
+    build:
+      context: ../..
+      dockerfile: services/media-service/Dockerfile
+    container_name: fm-media
+    environment:
+      APP_NAME: media-service
+      HTTP_PORT: 8007
+      LOG_LEVEL: info
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: music
+      MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: http://localhost:9000
+      CATALOG_SERVICE_URL: http://catalog-service:8003
+      URL_EXPIRY_MINUTES: 120
+    depends_on:
+      minio:
+        condition: service_started
+      catalog-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8007/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8007:8007"
+
+  api-gateway:
+    build:
+      context: ../..
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: fm-gateway
+    environment:
+      APP_NAME: api-gateway
+      HTTP_PORT: 8080
+      LOG_LEVEL: info
+      AUTH_SERVICE_URL: http://auth-service:8001
+      USER_SERVICE_URL: http://user-service:8002
+      CATALOG_SERVICE_URL: http://catalog-service:8003
+      PLAYLIST_SERVICE_URL: http://playlist-service:8004
+      LIBRARY_SERVICE_URL: http://library-service:8005
+      PLAYBACK_SERVICE_URL: http://playback-service:8006
+      MEDIA_SERVICE_URL: http://media-service:8007
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      playlist-service:
+        condition: service_healthy
+      library-service:
+        condition: service_healthy
+      playback-service:
+        condition: service_healthy
+      media-service:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
+  minio-data:

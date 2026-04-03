@@ -51,6 +51,16 @@ class PlayerBar extends ConsumerWidget {
               ),
             ],
           ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(formatMillis(position), style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                Text(formatMillis(duration), style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              ],
+            ),
+          ),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(trackHeight: 2, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6)),
             child: Slider(

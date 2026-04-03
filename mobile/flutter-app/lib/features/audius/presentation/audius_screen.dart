@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
 
 import '../../../core/formatters.dart';
 import '../../../core/theme.dart';
 import '../data/audius_repository.dart';
 import '../data/audius_track.dart';
+import '../../playback/presentation/playback_controller.dart';
+
+typedef AudiusPage = (int offset, int limit);
+
+final audiusTrendingProviderFamily = FutureProvider.autoDispose.family<List<AudiusTrack>, AudiusPage>((ref, page) {
+  final (offset, limit) = page;
+  return ref.read(audiusRepositoryProvider).trending(limit: limit, offset: offset);
+});
 
 final audiusTrendingProvider = FutureProvider<List<AudiusTrack>>((ref) {
   return ref.read(audiusRepositoryProvider).trending();
@@ -19,49 +26,65 @@ class AudiusScreen extends ConsumerStatefulWidget {
 }
 
 class _AudiusScreenState extends ConsumerState<AudiusScreen> {
-  final _player = AudioPlayer();
-  String? _playingId;
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
+  int _offset = 0;
+  final int _pageSize = 20;
 
   @override
   Widget build(BuildContext context) {
-    final tracks = ref.watch(audiusTrendingProvider);
+    final tracks = ref.watch(audiusTrendingProviderFamily((_offset, _pageSize)));
+    final playbackState = ref.watch(playbackControllerProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Audius Trending')),
       body: tracks.when(
-        data: (items) => ListView.builder(
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final t = items[index];
-            final playing = t.id == _playingId;
-            return Card(
-              child: ListTile(
-                leading: const _ProviderBadge(),
-                title: Text(t.title),
-                subtitle: Text('${t.artistName} • ${formatDuration((t.duration / 1000).round())}'),
-                trailing: IconButton(
-                  icon: Icon(playing ? Icons.pause_circle : Icons.play_circle, color: AppTheme.secondary),
-                  onPressed: t.streamUrl == null
-                      ? null
-                      : () async {
-                          if (playing) {
-                            await _player.pause();
-                            setState(() => _playingId = null);
-                          } else {
-                            await _player.setUrl(t.streamUrl!);
-                            await _player.play();
-                            setState(() => _playingId = t.id);
-                          }
-                        },
-                ),
-              ),
-            );
+        data: (items) => RefreshIndicator(
+          onRefresh: () async {
+            setState(() {
+              _offset = 0;
+            });
+            ref.refresh(audiusTrendingProviderFamily((_offset, _pageSize)));
           },
+          child: ListView.builder(
+            itemCount: items.length + 1,
+            itemBuilder: (context, index) {
+              if (index == items.length) {
+                return TextButton(
+                  onPressed: () {
+                    setState(() => _offset += _pageSize);
+                    ref.refresh(audiusTrendingProviderFamily((_offset, _pageSize)));
+                  },
+                  child: const Text('Load more'),
+                );
+              }
+              final t = items[index];
+              final playing = playbackState.playing && playbackState.track?.id == t.id;
+              return Card(
+                child: ListTile(
+                  leading: const _ProviderBadge(),
+                  title: Text(t.title),
+                  subtitle: Text('${t.artistName} • ${formatDuration(t.duration)}'),
+                  trailing: IconButton(
+                    icon: Icon(playing ? Icons.pause_circle : Icons.play_circle, color: AppTheme.secondary),
+                    onPressed: t.streamUrl == null
+                        ? null
+                        : () async {
+                            if (playing) {
+                              await ref.read(playbackControllerProvider.notifier).pause();
+                            } else {
+                              final playback = ref.read(playbackControllerProvider.notifier);
+                              await playback.playExternal(
+                                id: t.id,
+                                title: t.title,
+                                artist: t.artistName,
+                                url: t.streamUrl!,
+                                durationSec: t.duration,
+                              );
+                            }
+                          },
+                  ),
+                ),
+              );
+            },
+          ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Audius unavailable', style: TextStyle(color: Colors.red[200]))),

@@ -17,6 +17,7 @@ class PlaybackViewState {
   final int positionMs;
   final int durationMs;
   final String? error;
+  final bool external;
 
   const PlaybackViewState({
     this.track,
@@ -25,6 +26,7 @@ class PlaybackViewState {
     this.positionMs = 0,
     this.durationMs = 0,
     this.error,
+    this.external = false,
   });
 
   PlaybackViewState copyWith({
@@ -34,6 +36,7 @@ class PlaybackViewState {
     int? positionMs,
     int? durationMs,
     String? error,
+    bool? external,
   }) {
     return PlaybackViewState(
       track: track ?? this.track,
@@ -42,6 +45,7 @@ class PlaybackViewState {
       positionMs: positionMs ?? this.positionMs,
       durationMs: durationMs ?? this.durationMs,
       error: error,
+      external: external ?? this.external,
     );
   }
 }
@@ -101,6 +105,7 @@ class PlaybackController extends StateNotifier<PlaybackViewState> {
       error: null,
       positionMs: 0,
       durationMs: 0,
+      external: false,
     );
     try {
       await _player.stop();
@@ -126,9 +131,11 @@ class PlaybackController extends StateNotifier<PlaybackViewState> {
     try {
       await _player.pause();
       debugPrint('PLAY pause pos=$pos');
-      await _repo.pause(pos);
-      if (state.track != null) {
-        unawaited(_eventsRepo.trackPaused(state.track!.id));
+      if (!state.external) {
+        await _repo.pause(pos);
+        if (state.track != null) {
+          unawaited(_eventsRepo.trackPaused(state.track!.id));
+        }
       }
     } catch (_) {
       // if backend pause fails, keep local paused state
@@ -140,7 +147,9 @@ class PlaybackController extends StateNotifier<PlaybackViewState> {
     debugPrint('PLAY resume track=${state.track!.id}');
     state = state.copyWith(playing: true, error: null);
     try {
-      await _repo.resume();
+      if (!state.external) {
+        await _repo.resume();
+      }
       await _player.play();
     } catch (_) {
       state = state.copyWith(playing: false, error: 'Unable to resume');
@@ -151,8 +160,38 @@ class PlaybackController extends StateNotifier<PlaybackViewState> {
     if (state.track == null) return;
     debugPrint('PLAY seek pos=$positionMs');
     await _player.seek(Duration(milliseconds: positionMs));
-    await _repo.seek(positionMs);
+    if (!state.external) {
+      await _repo.seek(positionMs);
+    }
     state = state.copyWith(positionMs: positionMs);
+  }
+
+  Future<void> playExternal({
+    required String id,
+    required String title,
+    required String artist,
+    String albumId = '',
+    required String url,
+    int durationSec = 0,
+  }) async {
+    final track = TrackModel(id: id, title: '$title • $artist', artistId: artist, albumId: albumId, durationSec: durationSec);
+    state = state.copyWith(
+      track: track,
+      playing: true,
+      loading: true,
+      error: null,
+      positionMs: 0,
+      durationMs: durationSec * 1000,
+      external: true,
+    );
+    try {
+      await _player.stop();
+      await _player.setUrl(url);
+      await _player.play();
+      state = state.copyWith(loading: false, durationMs: _player.duration?.inMilliseconds ?? durationSec * 1000);
+    } catch (_) {
+      state = state.copyWith(playing: false, loading: false, error: 'Unable to play');
+    }
   }
 
   @override

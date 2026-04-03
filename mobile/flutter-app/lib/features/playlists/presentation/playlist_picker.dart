@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme.dart';
 import '../data/playlist_repository.dart';
 import 'playlist_controller.dart';
+import '../../events/data/events_repository.dart';
 
 Future<void> showPlaylistPicker(BuildContext context, WidgetRef ref, {required String trackId}) async {
   // ensure playlists are loaded
@@ -32,6 +35,7 @@ Future<void> showPlaylistPicker(BuildContext context, WidgetRef ref, {required S
             onTap: () async {
               debugPrint('Add track $trackId to playlist ${p.id}');
               await ref.read(playlistRepositoryProvider).addTrack(p.id, trackId);
+              unawaited(ref.read(eventsRepositoryProvider).playlistTrackAdded(p.id, trackId));
               if (context.mounted) Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Added to ${p.name}')),

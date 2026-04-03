@@ -19,9 +19,12 @@ type Router struct {
 	libraryProxy  *httputil.ReverseProxy
 	playbackProxy *httputil.ReverseProxy
 	mediaProxy    *httputil.ReverseProxy
+	eventsProxy   *httputil.ReverseProxy
+	searchProxy   *httputil.ReverseProxy
+	recoProxy     *httputil.ReverseProxy
 }
 
-func NewRouter(authURL, userURL, catalogURL, playlistURL, libraryURL, playbackURL, mediaURL string) (*Router, error) {
+func NewRouter(authURL, userURL, catalogURL, playlistURL, libraryURL, playbackURL, mediaURL, eventsURL, searchURL, recoURL string) (*Router, error) {
 	auth, err := proxyFor(authURL, "/api/v1/auth")
 	if err != nil {
 		return nil, err
@@ -50,6 +53,18 @@ func NewRouter(authURL, userURL, catalogURL, playlistURL, libraryURL, playbackUR
 	if err != nil {
 		return nil, err
 	}
+	events, err := proxyFor(eventsURL, "/api/v1/events")
+	if err != nil {
+		return nil, err
+	}
+	search, err := proxyFor(searchURL, "/api/v1/search")
+	if err != nil {
+		return nil, err
+	}
+	reco, err := proxyFor(recoURL, "/api/v1/recommendations")
+	if err != nil {
+		return nil, err
+	}
 	return &Router{
 		authProxy:     auth,
 		userProxy:     user,
@@ -58,6 +73,9 @@ func NewRouter(authURL, userURL, catalogURL, playlistURL, libraryURL, playbackUR
 		libraryProxy:  library,
 		playbackProxy: playback,
 		mediaProxy:    media,
+		eventsProxy:   events,
+		searchProxy:   search,
+		recoProxy:     reco,
 	}, nil
 }
 
@@ -109,6 +127,15 @@ func (r *Router) RegisterRoutes(router *gin.Engine) {
 
 		api.Any("/media", r.forward(r.mediaProxy))
 		api.Any("/media/*path", r.forward(r.mediaProxy))
+
+		api.Any("/events", r.forward(r.eventsProxy))
+		api.Any("/events/*path", r.forward(r.eventsProxy))
+
+		api.Any("/search", r.forward(r.searchProxy))
+		api.Any("/search/*path", r.forward(r.searchProxy))
+
+		api.Any("/recommendations", r.forward(r.recoProxy))
+		api.Any("/recommendations/*path", r.forward(r.recoProxy))
 	}
 }
 

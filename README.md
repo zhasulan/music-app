@@ -1,108 +1,114 @@
-# Freedom Music Backend (Phase 1)
+# Freedom Music Backend (Phase 3)
 
-## Overview
-Monorepo for a Spotify-like backend. Phase 1 delivers four Go services (api-gateway, auth-service, user-service, catalog-service), shared libraries, and local Docker Compose. A minimal Flutter client shell lives under `mobile/flutter-app/` for basic auth/profile/catalog flows.
+Monorepo for a Spotify-like backend plus Flutter client. Phase 3 adds search, events collection, and simple recommendations on top of the Phase 1–2 stack.
 
 ## Current Phase Status
-- Phase 2 implemented and runnable locally via Docker Compose.
-- Data: Postgres for auth/user; catalog uses in-memory seeded data; Redis available for future caching.
-- Flutter: web-capable shell present; runs via Flutter SDK (or container-based command below).
+- Implemented and runnable locally via Docker Compose.
+- Data: Postgres (auth, user, playlist, library, events), Redis (playback sessions), MinIO (media). Catalog remains in-memory seed. No OpenSearch/Kafka.
+- Flutter app: discover, search, catalog, playlists, library, playback; works on web/mobile with just_audio.
 
 ## Repository Structure
-- `services/` — api-gateway, auth-service, user-service, catalog-service
-- `shared/` — common config/logger/errors/httpx/middleware/auth/observability
+- `services/` — api-gateway, auth-service, user-service, catalog-service, playlist-service, library-service, playback-service, media-service, events-service, search-service, recommendation-service
+- `shared/` — config/logger/errors/httpx/middleware/auth/observability
 - `deploy/docker-compose/` — docker-compose.yml, init.sql
-- `docs/` — local-development.md, local-smoke-test.md
-- `scripts/` — placeholders
-- `mobile/flutter-app/` — Flutter client skeleton (web & mobile targets)
-- `Makefile`
-- `go.work`
+- `docs/` — local-development.md, phase-3-testing.md, local-smoke-test.md
+- `scripts/` — migrate_* (playlist/library/events), seed_media.sh
+- `mobile/flutter-app/` — Flutter client
+- `Makefile`, `go.work`
 
 ## Implemented Services
-- **api-gateway**: Reverse proxy to auth/user/catalog/playlist/library/playback/media under `/api/v1`; health at `/health`; request logging, request-id, CORS (dev-friendly).
-- **auth-service**: Register, login, refresh token, logout placeholder; JWT issuance (HS256); Postgres-backed users table.
-- **user-service**: Profile fetch/update for current user; auto-creates profile on first access; Postgres-backed `users` table.
-- **catalog-service**: Lists tracks/albums/artists and fetch-by-id using in-memory seeded dataset; health at `/health`.
-- **playlist-service**: CRUD playlists, add/remove tracks, per-user ownership, Postgres-backed.
-- **library-service**: Like/unlike tracks, list liked tracks, Postgres-backed.
-- **playback-service**: Stores active playback session per user in Redis; start/pause/resume/seek/current.
-- **media-service**: Returns media metadata and presigned URLs from MinIO for tracks; health at `/health`.
+- **api-gateway**: Reverse proxy for all services under `/api/v1`, health `/health`, CORS + request logging.
+- **auth-service**: Register/login/refresh (JWT HS256), Postgres users.
+- **user-service**: Profile get/update, Postgres.
+- **catalog-service**: Seeded tracks/albums/artists in memory.
+- **playlist-service**: Playlists CRUD + tracks, Postgres.
+- **library-service**: Like/unlike/list liked tracks, Postgres.
+- **playback-service**: Start/pause/resume/seek/current; Redis per-user session.
+- **media-service**: Media metadata + MinIO URLs for mp3 demo files.
+- **events-service**: Ingests track/search/playlist events into Postgres (no Kafka).
+- **search-service**: Substring search + suggestions over catalog seed (no OpenSearch; reload on restart).
+- **recommendation-service**: Rule-based trending/recently-played/for-you built from events + catalog (no ML).
 
 ## Current Features
-- Health endpoints on all services (`/health`).
-- Auth: register, login, refresh token; bcrypt password hashing; JWT access/refresh issuance.
-- User: get/update current profile (name, country); profiles stored in Postgres.
-- Catalog: list tracks/albums/artists and get by id (seeded data, no DB yet).
-- Gateway routing for `/api/v1/auth/*`, `/api/v1/users/*`, `/api/v1/catalog/*`.
-- Structured JSON logging with request-id; simple CORS for browser local dev.
+- Auth, profile, playlists, library, playback with MinIO mp3s.
+- Events capture: track_played/paused/liked, playlist_created, playlist_track_added, search_performed.
+- Search with suggestions over seeded catalog.
+- Recommendations: trending (most played/liked), recently played (per user), for-you (liked + trending blend).
+- Flutter: tabs for Discover, Search, Catalog, Playlists, Library, Profile; bottom mini-player; actions play/like/add-to-playlist.
+- Structured JSON logs; request-id; CORS enabled for local dev.
 
 ## Tech Stack
-- Go 1.24
-- Gin
-- PostgreSQL 16
-- Redis 7
-- Docker Compose
-- Flutter 3.x (client shell)
-- JWT (HS256), bcrypt, zap logger
+- Go 1.24, Gin, PostgreSQL 16, Redis 7, MinIO, Docker Compose
+- Flutter 3.x, Riverpod, Dio, just_audio, go_router
+- No OpenSearch/Kafka in local setup
 
-## Local Development
-See `docs/local-development.md` for details. Quick start:
+## Local Development (summary)
+See `docs/local-development.md` for full details.
 
-### Environment Variables
-A `.env.example` is provided with base secrets. Key vars (envDefault shown):
-- **api-gateway**: `APP_NAME=api-gateway`, `HTTP_PORT=8080`, `LOG_LEVEL=info`, `AUTH_SERVICE_URL`, `USER_SERVICE_URL`, `CATALOG_SERVICE_URL`
-- **auth-service**: `APP_NAME=auth-service`, `HTTP_PORT=8001`, `LOG_LEVEL=info`, `DATABASE_URL=postgres://postgres:postgres@postgres:5432/auth_service?sslmode=disable`, `JWT_SECRET`, `ACCESS_TOKEN_MINUTES=15`, `REFRESH_TOKEN_HOURS=720`
-- **user-service**: `APP_NAME=user-service`, `HTTP_PORT=8002`, `LOG_LEVEL=info`, `DATABASE_URL=postgres://postgres:postgres@postgres:5432/user_service?sslmode=disable`, `JWT_SECRET`
-- **catalog-service**: `APP_NAME=catalog-service`, `HTTP_PORT=8003`, `LOG_LEVEL=info`
-- Postgres/Redis handled by docker-compose defaults (user/pass `postgres/postgres`).
-
-### Running the Backend
 ```bash
-make up            # build & start all services + db/redis
+make up            # build & start all services + db/redis/minio
+make migrate-all   # playlist, library, events schemas
+make seed-media    # upload demo mp3s to MinIO
 make logs          # follow logs
-make restart       # restart containers
 make down          # stop stack
-make rebuild       # rebuild images without cache
 ```
-Health check (host): `curl http://127.0.0.1:8080/health`
+Health: `curl http://127.0.0.1:8080/health`
 
-### Running Flutter locally
-Requirements: Flutter 3.x. If local SDK is broken, use the container command below.
-- Android emulator (host Flutter): `make flutter-run` (API_BASE_URL defaults to http://10.0.2.2:8080)
-- Web via Chrome (host Flutter): `make flutter-run-web` (API_BASE_URL=http://127.0.0.1:8080)
-- Containerized Flutter Web (works without host SDK):
+## Key Environment Variables
+- Shared: `JWT_SECRET`, `POSTGRES_PASSWORD`
+- api-gateway: service URLs for auth/user/catalog/playlist/library/playback/media/events/search/recommendation
+- events-service: `DATABASE_URL` (events_service), `HTTP_PORT`, `JWT_SECRET`
+- search-service: `CATALOG_SERVICE_URL`, `HTTP_PORT`
+- recommendation-service: `DATABASE_URL` (events_service), `CATALOG_SERVICE_URL`, `JWT_SECRET`, `HTTP_PORT`
+- media-service: MinIO endpoint/keys/bucket/public URL
+
+## Smoke Tests (quick)
 ```bash
-docker run --rm -p 8081:8081 \
-  -v /Users/zhasulan/GolandProjects/freedom-music/mobile/flutter-app:/app \
-  -w /app ghcr.io/cirruslabs/flutter:3.19.6 \
-  sh -lc "flutter pub get && flutter run -d web-server --target=lib/app/main.dart \
-    --web-hostname=0.0.0.0 --web-port=8081 \
-    --dart-define API_BASE_URL=http://host.docker.internal:8080"
-# then open http://localhost:8081
+curl http://127.0.0.1:8080/health
+curl "http://127.0.0.1:8080/api/v1/catalog/tracks"
+curl "http://127.0.0.1:8080/api/v1/search?q=love"
+curl http://127.0.0.1:8080/api/v1/recommendations/trending
+# needs token:
+curl -H "Authorization: Bearer <token>" -X POST \
+  http://127.0.0.1:8080/api/v1/events/track-played \
+  -H 'Content-Type: application/json' -d '{"track_id":"trk_1"}'
 ```
 
-## Smoke Test Scenarios
-1) Start stack: `make up`
-2) Check gateway health: `curl http://127.0.0.1:8080/health`
-3) Register: `curl -X POST http://127.0.0.1:8080/api/v1/auth/register -d '{"email":"a@b.com","password":"password123"}' -H 'Content-Type: application/json'`
-4) Login: `curl -X POST http://127.0.0.1:8080/api/v1/auth/login ...` (store access/refresh)
-5) Profile: `curl -H "Authorization: Bearer <access>" http://127.0.0.1:8080/api/v1/users/me`
-6) Update profile: PUT `/api/v1/users/me` with name/country
-7) Catalog list: `curl http://127.0.0.1:8080/api/v1/catalog/tracks`
-8) (Optional) Flutter Web: open http://localhost:8081, register/login, view Profile and Catalog tabs, logout.
+## Running Flutter
+```bash
+make flutter-pub-get
+make flutter-run-web     # Chrome, API_BASE_URL=http://127.0.0.1:8080
+make flutter-run         # Android emulator, API_BASE_URL=http://10.0.2.2:8080
+```
+See `mobile/flutter-app/README.md` for platform notes.
+
+## Search Notes
+- No OpenSearch; search-service loads catalog seed into memory at startup.
+- Restart search-service (or `make reindex-search`) after catalog seed changes.
+
+## Recommendation Notes
+- Heuristic only: counts of plays/likes and recent user history; no ML/vector search.
+- Depends on events being recorded.
+
+## Event Notes
+- Stored in Postgres (events_service DB); no Kafka pipeline.
+- Endpoints: generic `/api/v1/events` plus typed track-played/paused/liked, playlist-created/track-added, search_performed.
 
 ## Makefile Commands
 - `make up` / `make down` / `make logs` / `make restart` / `make rebuild`
-- `make build` (docker compose build)
-- `make lint` (gofmt current tree)
-- `make test` (go test ./...)
-- Flutter helpers: `make flutter-pub-get`, `make flutter-run`, `make flutter-run-web`, `make flutter-analyze`
+- `make migrate-all` (playlist, library, events)
+- `make seed-media`
+- `make reindex-search` (restart search-service)
+- `make test` / `make lint`
+- Flutter: `make flutter-pub-get`, `make flutter-run`, `make flutter-run-web`, `make flutter-analyze`
 
-## What is not implemented yet
-- Search, recommendations, subscriptions
-- Production deployments (Kubernetes, CDNs, etc.)
-- Token revocation/session store, advanced caching
-- Catalog persistence (currently in-memory seed only)
+## Limitations
+- Catalog still in-memory seed (no DB, no images).
+- Search is substring/in-memory; no OpenSearch.
+- Recommendations are rule-based; no ML.
+- No subscriptions/billing; no production hardening (K8s/CDN/observability stack).
+- Tokens are not revoked; refresh flow basic.
+- No Kafka/event streaming; events only in Postgres.
 
-## Next planned phase
-Phase 3 roadmap: events-service, search-service (not implemented).
+## Next Planned Phase
+- Possible future: richer catalog data store, analytics/observability, ML recommendations, social features, production deployment hardening.

@@ -20,7 +20,7 @@ class CatalogScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Discover'),
+        title: const Text('Catalog'),
         centerTitle: false,
       ),
       body: tracksAsync.when(

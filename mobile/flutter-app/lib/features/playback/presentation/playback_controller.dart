@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../../core/models.dart';
 import '../../catalog/data/catalog_repository.dart';
 import '../../media/data/media_repository.dart';
+import '../../events/data/events_repository.dart';
 import '../data/playback_repository.dart';
 
 class PlaybackViewState {
@@ -46,7 +47,7 @@ class PlaybackViewState {
 }
 
 class PlaybackController extends StateNotifier<PlaybackViewState> {
-  PlaybackController(this._repo, this._mediaRepo, this._catalogRepo)
+  PlaybackController(this._repo, this._mediaRepo, this._catalogRepo, this._eventsRepo)
       : _player = AudioPlayer(),
         super(const PlaybackViewState()) {
     _bindStreams();
@@ -56,6 +57,7 @@ class PlaybackController extends StateNotifier<PlaybackViewState> {
   final PlaybackRepository _repo;
   final MediaRepository _mediaRepo;
   final CatalogRepository _catalogRepo;
+  final EventsRepository _eventsRepo;
   final AudioPlayer _player;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
@@ -107,6 +109,7 @@ class PlaybackController extends StateNotifier<PlaybackViewState> {
       await _player.setUrl(source.url);
       await _repo.start(track.id, 0);
       await _player.play();
+      unawaited(_eventsRepo.trackPlayed(track.id));
       state = state.copyWith(
         loading: false,
         durationMs: _player.duration?.inMilliseconds ?? 0,
@@ -124,6 +127,9 @@ class PlaybackController extends StateNotifier<PlaybackViewState> {
       await _player.pause();
       debugPrint('PLAY pause pos=$pos');
       await _repo.pause(pos);
+      if (state.track != null) {
+        unawaited(_eventsRepo.trackPaused(state.track!.id));
+      }
     } catch (_) {
       // if backend pause fails, keep local paused state
     }
@@ -162,5 +168,6 @@ final playbackControllerProvider = StateNotifierProvider<PlaybackController, Pla
   final repo = ref.read(playbackRepositoryProvider);
   final media = ref.read(mediaRepositoryProvider);
   final catalog = ref.read(catalogRepositoryProvider);
-  return PlaybackController(repo, media, catalog);
+  final events = ref.read(eventsRepositoryProvider);
+  return PlaybackController(repo, media, catalog, events);
 });

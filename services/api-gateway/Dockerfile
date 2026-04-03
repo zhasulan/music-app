@@ -2,7 +2,7 @@ FROM golang:1.24-alpine AS build
 WORKDIR /app
 COPY . .
 WORKDIR /app/services/api-gateway
-ENV GOWORK=off GOFLAGS=-mod=vendor GOPROXY=off GOSUMDB=off
+ENV GOWORK=off GOFLAGS=-mod=mod
 RUN go build -o /api-gateway ./cmd/server
 
 FROM alpine:3.19

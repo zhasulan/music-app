@@ -14,6 +14,9 @@ type Config struct {
 	LibraryServiceURL  string `env:"LIBRARY_SERVICE_URL" envDefault:"http://library-service:8005"`
 	PlaybackServiceURL string `env:"PLAYBACK_SERVICE_URL" envDefault:"http://playback-service:8006"`
 	MediaServiceURL    string `env:"MEDIA_SERVICE_URL" envDefault:"http://media-service:8007"`
+	EventsServiceURL   string `env:"EVENTS_SERVICE_URL" envDefault:"http://events-service:8010"`
+	SearchServiceURL   string `env:"SEARCH_SERVICE_URL" envDefault:"http://search-service:8011"`
+	RecommendationURL  string `env:"RECOMMENDATION_SERVICE_URL" envDefault:"http://recommendation-service:8012"`
 }
 
 func Load() *Config {

@@ -33,7 +33,17 @@ migrate-playlist:
 migrate-library:
 	./scripts/migrate_library.sh
 
-migrate-all: migrate-playlist migrate-library
+migrate-events:
+	./scripts/migrate_events.sh
+
+migrate-all: migrate-playlist migrate-library migrate-events
+
+reindex-search:
+	@echo "Reloading search index (restart search-service to pull latest catalog)"
+	$(COMPOSE) restart search-service
+
+seed-events:
+	@echo "No-op seed for events (handled by runtime usage)"
 
 flutter-pub-get:
 	cd mobile/flutter-app && flutter pub get

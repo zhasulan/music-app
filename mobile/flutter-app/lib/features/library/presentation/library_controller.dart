@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models.dart';
 import '../data/library_repository.dart';
+import '../../events/data/events_repository.dart';
 
 class LibraryState {
   final Set<String> likedIds;
@@ -20,11 +23,12 @@ class LibraryState {
 }
 
 class LibraryController extends StateNotifier<LibraryState> {
-  LibraryController(this._repo) : super(const LibraryState()) {
+  LibraryController(this._repo, this._events) : super(const LibraryState()) {
     load();
   }
 
   final LibraryRepository _repo;
+  final EventsRepository _events;
 
   Future<void> load() async {
     state = state.copyWith(loading: true, error: null);
@@ -51,6 +55,7 @@ class LibraryController extends StateNotifier<LibraryState> {
         await _repo.unlike(trackId);
       } else {
         await _repo.like(trackId);
+        unawaited(_events.trackLiked(trackId));
       }
     } catch (_) {
       // rollback
@@ -65,5 +70,5 @@ class LibraryController extends StateNotifier<LibraryState> {
 }
 
 final libraryControllerProvider = StateNotifierProvider<LibraryController, LibraryState>((ref) {
-  return LibraryController(ref.read(libraryRepositoryProvider));
+  return LibraryController(ref.read(libraryRepositoryProvider), ref.read(eventsRepositoryProvider));
 });

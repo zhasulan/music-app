@@ -50,6 +50,9 @@ func New() (*Application, error) {
 		cfg.LibraryServiceURL,
 		cfg.PlaybackServiceURL,
 		cfg.MediaServiceURL,
+		cfg.EventsServiceURL,
+		cfg.SearchServiceURL,
+		cfg.RecommendationURL,
 	)
 	if err != nil {
 		return nil, err

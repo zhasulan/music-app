@@ -10,4 +10,7 @@ use (
     ./services/library-service
     ./services/playback-service
     ./services/media-service
+    ./services/events-service
+    ./services/search-service
+    ./services/recommendation-service
 )

@@ -1,4 +1,4 @@
-# Freedom Music Flutter App (Phase 2)
+# Freedom Music Flutter App (Phase 3)
 
 Playable MVP client for the Freedom Music backend. All traffic goes through the API Gateway.
 
@@ -43,11 +43,14 @@ flutter run --dart-define API_BASE_URL=http://192.168.1.50:8080
 ## Screens & flows
 - Splash (token check)
 - Auth: Login / Register (polished forms)
-- Home tabs: Catalog, Playlists, Library, Profile
+- Home tabs: Discover, Search, Catalog, Playlists, Library, Profile
 - Playback: bottom mini-player (play/pause/seek)
 - Playlists: create/list/detail, add/remove tracks
 - Library: like/unlike tracks, list liked
 - Profile: view/update basic fields
+- Discover: trending / recently played / for you (recommendation-service)
+- Search: tracks/albums/artists with suggestions and play/add/like actions
+- Events: app sends play/pause/like/playlist/search events to events-service (best-effort)
 - Logout (AppBar icon)
 - Uses real mp3 demo files from MinIO via media-service (run `make seed-media` after `make up`)
 
@@ -62,3 +65,6 @@ flutter run --dart-define API_BASE_URL=http://192.168.1.50:8080
 - No advanced queue/background audio.
 - Refresh token flow remains minimal.
 - Catalog metadata is basic (no images yet).
+- Recommendations are rule-based; results depend on recorded events.
+- Search is substring-based; suggestions are simple and limited.
+- Event sends are fire-and-forget; failures are not surfaced to the user.

@@ -8,8 +8,9 @@ class SearchResult {
   final String type;
   final TrackModel? track;
   final String title;
+  final String provider;
 
-  SearchResult({required this.type, required this.title, this.track});
+  SearchResult({required this.type, required this.title, this.track, this.provider = 'local'});
 }
 
 class SearchRepository {
@@ -38,10 +39,10 @@ class SearchRepository {
         albumId: (json['track']?['album_id'] ?? json['album_id'] ?? '') as String,
         durationSec: json['track']?['duration_sec'] as int? ?? json['duration_sec'] as int? ?? 0,
       );
-      return SearchResult(type: 'track', title: track.title, track: track);
+      return SearchResult(type: 'track', title: track.title, track: track, provider: 'local');
     }
     final title = json['album']?['title'] ?? json['artist']?['name'] ?? json['title'] ?? json['name'] ?? '';
-    return SearchResult(type: type, title: title.toString());
+    return SearchResult(type: type, title: title.toString(), provider: 'local');
   }
 }
 

@@ -4,16 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/formatters.dart';
 import '../../../core/models.dart';
 import '../../catalog/data/catalog_repository.dart';
+import '../../audius/data/audius_repository.dart';
 import '../../playback/presentation/playback_controller.dart';
 import '../data/playlist_repository.dart';
 
 final playlistDetailProvider = FutureProvider.family.autoDispose<PlaylistDetailVm, int>((ref, id) async {
   final repo = ref.read(playlistRepositoryProvider);
   final catalog = ref.read(catalogRepositoryProvider);
+  final audius = ref.read(audiusRepositoryProvider);
   final (pl, tracks) = await repo.details(id);
   final items = <PlaylistItem>[];
   for (final t in tracks) {
-    final track = await catalog.track(t.trackId);
+    TrackModel? track;
+    if (t.trackId.startsWith('audius:')) {
+      final a = await audius.track(t.trackId);
+      track = a?.toTrackModel();
+    } else {
+      track = await catalog.track(t.trackId);
+    }
     if (track != null) {
       items.add(PlaylistItem(track: track, position: t.position));
     }

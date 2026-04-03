@@ -6,6 +6,8 @@ import '../../../core/theme.dart';
 import '../data/audius_repository.dart';
 import '../data/audius_track.dart';
 import '../../playback/presentation/playback_controller.dart';
+import '../../library/presentation/library_controller.dart';
+import '../../playlists/presentation/playlist_picker.dart';
 
 typedef AudiusPage = (int offset, int limit);
 
@@ -62,24 +64,37 @@ class _AudiusScreenState extends ConsumerState<AudiusScreen> {
                   leading: const _ProviderBadge(),
                   title: Text(t.title),
                   subtitle: Text('${t.artistName} • ${formatDuration(t.duration)}'),
-                  trailing: IconButton(
-                    icon: Icon(playing ? Icons.pause_circle : Icons.play_circle, color: AppTheme.secondary),
-                    onPressed: t.streamUrl == null
-                        ? null
-                        : () async {
-                            if (playing) {
-                              await ref.read(playbackControllerProvider.notifier).pause();
-                            } else {
-                              final playback = ref.read(playbackControllerProvider.notifier);
-                              await playback.playExternal(
-                                id: t.id,
-                                title: t.title,
-                                artist: t.artistName,
-                                url: t.streamUrl!,
-                                durationSec: t.duration,
-                              );
-                            }
-                          },
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(playing ? Icons.pause_circle : Icons.play_circle, color: AppTheme.secondary),
+                        onPressed: t.streamUrl == null
+                            ? null
+                            : () async {
+                                if (playing) {
+                                  await ref.read(playbackControllerProvider.notifier).pause();
+                                } else {
+                                  final playback = ref.read(playbackControllerProvider.notifier);
+                                  await playback.playExternal(
+                                    id: t.id,
+                                    title: t.title,
+                                    artist: t.artistName,
+                                    url: t.streamUrl!,
+                                    durationSec: t.duration,
+                                  );
+                                }
+                              },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.favorite_border, color: AppTheme.textSecondary),
+                        onPressed: () => ref.read(libraryControllerProvider.notifier).toggleLike(t.id),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.playlist_add, color: AppTheme.textSecondary),
+                        onPressed: () => showPlaylistPicker(context, ref, trackId: t.id),
+                      ),
+                    ],
                   ),
                 ),
               );

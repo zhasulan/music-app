@@ -65,9 +65,7 @@ func (s *PlaylistService) Delete(ctx context.Context, userID, playlistID int64) 
 }
 
 func (s *PlaylistService) AddTrack(ctx context.Context, userID, playlistID int64, trackID string, position int) ([]domain.PlaylistTrack, error) {
-	if err := s.catalog.ValidateTrack(ctx, trackID); err != nil {
-		return nil, fmt.Errorf("validate track: %w", err)
-	}
+	// Allow external provider ids (e.g., audius:*) without catalog validation
 	pl, err := s.repo.Get(ctx, userID, playlistID)
 	if err != nil {
 		return nil, err
@@ -97,4 +95,8 @@ func (s *PlaylistService) RemoveTrack(ctx context.Context, userID, playlistID in
 		return nil, fmt.Errorf("track not found in playlist")
 	}
 	return s.repo.ListTracks(ctx, playlistID)
+}
+
+func isExternal(trackID string) bool {
+	return len(trackID) > 7 && trackID[:7] == "audius:"
 }

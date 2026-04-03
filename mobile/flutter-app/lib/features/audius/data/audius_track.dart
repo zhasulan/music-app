@@ -1,3 +1,5 @@
+import '../../../core/models.dart';
+
 class AudiusTrack {
   final String id;
   final String providerTrackId;
@@ -31,4 +33,12 @@ class AudiusTrack {
       streamUrl: json['streamUrl'] as String?,
     );
   }
+
+  TrackModel toTrackModel() => TrackModel(
+        id: id,
+        title: title,
+        artistId: artistHandle,
+        albumId: '',
+        durationSec: duration,
+      );
 }

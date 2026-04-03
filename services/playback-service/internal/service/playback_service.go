@@ -24,8 +24,12 @@ func NewPlaybackService(store *store.RedisStore, catalog *client.CatalogClient) 
 }
 
 func (s *PlaybackService) Start(ctx context.Context, userID int64, trackID string, positionMs int) (*domain.PlaybackSession, error) {
-	if err := s.catalog.ValidateTrack(ctx, trackID); err != nil {
-		return nil, err
+	// Audius (and other external providers) are not present in local catalog.
+	// Allow them to pass through so playback works for streamed tracks.
+	if !isExternal(trackID) {
+		if err := s.catalog.ValidateTrack(ctx, trackID); err != nil {
+			return nil, err
+		}
 	}
 	sess := &domain.PlaybackSession{
 		UserID:     userID,
@@ -98,4 +102,9 @@ func (s *PlaybackService) Current(ctx context.Context, userID int64) (*domain.Pl
 		return nil, ErrSessionNotFound
 	}
 	return sess, nil
+}
+
+// isExternal returns true for provider-scoped IDs (e.g., "audius:*").
+func isExternal(trackID string) bool {
+	return len(trackID) > 7 && trackID[:7] == "audius:"
 }

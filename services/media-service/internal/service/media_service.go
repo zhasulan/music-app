@@ -26,6 +26,11 @@ func NewMediaService(storage *storage.MinioStorage, catalog *client.CatalogClien
 }
 
 func (s *MediaService) Metadata(ctx context.Context, trackID string) (*domain.MediaObject, error) {
+	if isExternal(trackID) {
+		// We don't store external tracks in MinIO; return minimal metadata.
+		return &domain.MediaObject{TrackID: trackID, ObjectKey: "", Bucket: "", ContentType: "audio/mpeg"}, nil
+	}
+
 	if err := s.catalog.ValidateTrack(ctx, trackID); err != nil {
 		return nil, err
 	}
@@ -38,6 +43,12 @@ func (s *MediaService) Metadata(ctx context.Context, trackID string) (*domain.Me
 }
 
 func (s *MediaService) SourceURL(ctx context.Context, trackID string) (string, error) {
+	if isExternal(trackID) {
+		id := trackID[len("audius:"):]
+		// Direct Audius stream URL (no presign required for public CDN).
+		return fmt.Sprintf("https://api.audius.co/v1/tracks/%s/stream?app_name=FreedomMusic", id), nil
+	}
+
 	meta, err := s.Metadata(ctx, trackID)
 	if err != nil {
 		return "", err
@@ -51,4 +62,8 @@ func (s *MediaService) SourceURL(ctx context.Context, trackID string) (string, e
 	}
 	// Always return direct URL for local dev (bucket is public). Avoid presign clock skew.
 	return s.storage.PublicURL(meta.ObjectKey), nil
+}
+
+func isExternal(trackID string) bool {
+	return len(trackID) > 7 && trackID[:7] == "audius:"
 }

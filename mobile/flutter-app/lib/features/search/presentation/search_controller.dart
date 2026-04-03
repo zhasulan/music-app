@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../events/data/events_repository.dart';
 import '../data/search_repository.dart';
+import '../../audius/data/audius_repository.dart';
 
 class SearchState {
   final String query;
@@ -38,9 +39,10 @@ class SearchState {
 }
 
 class SearchController extends StateNotifier<SearchState> {
-  SearchController(this._repo, this._events) : super(const SearchState());
+  SearchController(this._repo, this._audius, this._events) : super(const SearchState());
 
   final SearchRepository _repo;
+  final AudiusRepository _audius;
   final EventsRepository _events;
   Timer? _debounce;
 
@@ -54,7 +56,14 @@ class SearchController extends StateNotifier<SearchState> {
       }
       try {
         final suggestions = await _repo.suggest(q);
-        final results = await _repo.search(q);
+        final results = <SearchResult>[...await _repo.search(q)];
+        final audiusTracks = await _audius.searchTracks(q, limit: 10, offset: 0);
+        results.addAll(audiusTracks.map((a) => SearchResult(
+              type: 'track',
+              title: a.title,
+              track: a.toTrackModel(),
+              provider: 'audius',
+            )));
         unawaited(_events.searchPerformed(q));
         state = state.copyWith(loading: false, results: results, suggestions: suggestions);
       } catch (e) {
@@ -65,5 +74,5 @@ class SearchController extends StateNotifier<SearchState> {
 }
 
 final searchControllerProvider = StateNotifierProvider<SearchController, SearchState>((ref) {
-  return SearchController(ref.read(searchRepositoryProvider), ref.read(eventsRepositoryProvider));
+  return SearchController(ref.read(searchRepositoryProvider), ref.read(audiusRepositoryProvider), ref.read(eventsRepositoryProvider));
 });

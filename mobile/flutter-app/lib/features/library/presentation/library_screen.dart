@@ -7,6 +7,9 @@ import '../../catalog/presentation/catalog_screen.dart';
 import '../../catalog/data/catalog_repository.dart';
 import '../../playback/presentation/playback_controller.dart';
 import '../../playlists/presentation/playlist_picker.dart';
+import '../../audius/data/audius_repository.dart';
+import '../../audius/data/audius_track.dart';
+import '../../../core/models.dart';
 import 'library_controller.dart';
 
 class LibraryScreen extends ConsumerWidget {
@@ -15,7 +18,7 @@ class LibraryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(libraryControllerProvider);
-    final tracksAsync = ref.watch(tracksProvider);
+    final tracksAsync = ref.watch(likedTrackDetailsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Your Library')),
@@ -73,3 +76,20 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 }
+
+final likedTrackDetailsProvider = FutureProvider<List<TrackModel>>((ref) async {
+  final likedIds = ref.watch(libraryControllerProvider).likedIds;
+  final catalog = ref.read(catalogRepositoryProvider);
+  final audius = ref.read(audiusRepositoryProvider);
+  final List<TrackModel> result = [];
+  for (final id in likedIds) {
+    if (id.startsWith('audius:')) {
+      final a = await audius.track(id);
+      if (a != null) result.add(a.toTrackModel());
+    } else {
+      final t = await catalog.track(id);
+      if (t != null) result.add(t);
+    }
+  }
+  return result;
+});

@@ -122,7 +122,9 @@ class _ResultTile extends StatelessWidget {
           color: AppTheme.secondary,
         ),
         title: Text(result.title),
-        subtitle: track != null ? Text(formatDuration(track.durationSec)) : Text(result.type),
+        subtitle: track != null
+            ? Text('${formatDuration(track.durationSec)} • ${result.provider}')
+            : Text(result.type),
         trailing: track == null
             ? null
             : Row(

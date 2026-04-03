@@ -188,6 +188,7 @@ class PlaybackController extends StateNotifier<PlaybackViewState> {
       await _player.stop();
       await _player.setUrl(url);
       await _player.play();
+      unawaited(_eventsRepo.trackPlayed(id));
       state = state.copyWith(loading: false, durationMs: _player.duration?.inMilliseconds ?? durationSec * 1000);
     } catch (_) {
       state = state.copyWith(playing: false, loading: false, error: 'Unable to play');

@@ -8,6 +8,7 @@ import '../features/library/presentation/library_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/playback/presentation/player_bar.dart';
 import '../features/playback/presentation/playback_controller.dart';
+import '../features/audius/presentation/audius_screen.dart';
 import '../features/search/presentation/search_screen.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
@@ -32,6 +33,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             child: IndexedStack(
               index: _index,
               children: const [
+                AudiusScreen(),
                 DiscoverScreen(),
                 SearchScreen(),
                 CatalogScreen(),
@@ -48,6 +50,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
         items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: 'Audius'),
           BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
           BottomNavigationBarItem(icon: Icon(Icons.library_music), label: 'Catalog'),

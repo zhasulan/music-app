@@ -20,7 +20,8 @@
   - media-service: 8007
   - events-service: 8010
   - search-service: 8011
-  - recommendation-service: 8012
+- recommendation-service: 8012
+- provider-service: 8013
   - postgres: 5432
   - redis: 6379
   - minio api: 9000 (console 9001)
@@ -92,4 +93,10 @@
 - `make migrate-all`
 - `make seed-media`
 - `make reindex-search`
+- `make up provider-service` if only Audius proxy changes
 - `make flutter-pub-get` / `make flutter-run` / `make flutter-run-web` / `make flutter-analyze`
+- Audius proxy (via provider-service):
+  - Trending tracks: `curl http://127.0.0.1:8080/api/v1/providers/audius/tracks/trending`
+  - Track stream URL: `curl http://127.0.0.1:8080/api/v1/providers/audius/tracks/<id>/stream`
+  - Artist: `curl http://127.0.0.1:8080/api/v1/providers/audius/artists/<handle>`
+  - Playlist search: `curl "http://127.0.0.1:8080/api/v1/providers/audius/playlists/search?q=mix"`

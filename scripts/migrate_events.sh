@@ -5,10 +5,12 @@ COMPOSE=${COMPOSE:-"docker compose -f deploy/docker-compose/docker-compose.yml"}
 DB=events_service
 
 echo "Ensuring database $DB exists..."
-$COMPOSE exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = ) THEN CREATE DATABASE $DB; END IF; END \$\$;"
+if ! $COMPOSE exec -T postgres psql -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -q 1; then
+  $COMPOSE exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $DB;"
+fi
 
 echo "Applying events schema..."
-$COMPOSE exec -T postgres psql -U postgres -d $DB -v ON_ERROR_STOP=1 <<SQL
+$COMPOSE exec -T postgres psql -U postgres -d $DB -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS events (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT,

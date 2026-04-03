@@ -276,6 +276,29 @@ services:
     ports:
       - "8012:8012"
 
+  provider-service:
+    build:
+      context: ../..
+      dockerfile: services/provider-service/Dockerfile
+    container_name: fm-provider
+    environment:
+      APP_NAME: provider-service
+      HTTP_PORT: 8013
+      LOG_LEVEL: info
+      AUDIOUS_BASE_URL: https://api.audius.co/v1
+      AUDIOUS_APP_NAME: FreedomMusic
+      CACHE_TTL_SECONDS: 300
+    depends_on:
+      catalog-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8013/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8013:8013"
+
   api-gateway:
     build:
       context: ../..
@@ -295,6 +318,7 @@ services:
       EVENTS_SERVICE_URL: http://events-service:8010
       SEARCH_SERVICE_URL: http://search-service:8011
       RECOMMENDATION_SERVICE_URL: http://recommendation-service:8012
+      PROVIDER_SERVICE_URL: http://provider-service:8013
     depends_on:
       auth-service:
         condition: service_healthy
@@ -315,6 +339,8 @@ services:
       search-service:
         condition: service_healthy
       recommendation-service:
+        condition: service_healthy
+      provider-service:
         condition: service_healthy
     ports:
       - "8080:8080"

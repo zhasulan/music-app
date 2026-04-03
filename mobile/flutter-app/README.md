@@ -44,6 +44,7 @@ flutter run --dart-define API_BASE_URL=http://192.168.1.50:8080
 - Splash (token check)
 - Auth: Login / Register (polished forms)
 - Home tabs: Discover, Search, Catalog, Playlists, Library, Profile
+- Audius tab: Audius trending (external provider, read-only)
 - Playback: bottom mini-player (play/pause/seek)
 - Playlists: create/list/detail, add/remove tracks
 - Library: like/unlike tracks, list liked
@@ -53,6 +54,7 @@ flutter run --dart-define API_BASE_URL=http://192.168.1.50:8080
 - Events: app sends play/pause/like/playlist/search events to events-service (best-effort)
 - Logout (AppBar icon)
 - Uses real mp3 demo files from MinIO via media-service (run `make seed-media` after `make up`)
+- Audius: uses provider-service proxy; shows provider badge and streams via Audius URLs (no secrets in app)
 
 ## Notes
 - All API calls go through the gateway.

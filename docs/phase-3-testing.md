@@ -76,3 +76,4 @@ Practical manual checks for search, discovery, events, and recommendations.
 - Recommendations are heuristic; quality depends on recorded events.
 - No Kafka or analytics pipelines; events only in Postgres.
 - No offline/background audio; refresh token flow minimal.
+- Audius provider is read-only; if Audius API is down, Audius tab may show an error but local content still works.

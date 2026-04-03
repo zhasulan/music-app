@@ -13,4 +13,5 @@ use (
     ./services/events-service
     ./services/search-service
     ./services/recommendation-service
+    ./services/provider-service
 )

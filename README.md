@@ -28,6 +28,7 @@ Monorepo for a Spotify-like backend plus Flutter client. Phase 3 adds search, ev
 - **events-service**: Ingests track/search/playlist events into Postgres (no Kafka).
 - **search-service**: Substring search + suggestions over catalog seed (no OpenSearch; reload on restart).
 - **recommendation-service**: Rule-based trending/recently-played/for-you built from events + catalog (no ML).
+- **provider-service**: Audius proxy provider; normalized endpoints for Audius tracks/artists/playlists/streaming (local MinIO flow unchanged).
 
 ## Current Features
 - Auth, profile, playlists, library, playback with MinIO mp3s.
@@ -40,7 +41,7 @@ Monorepo for a Spotify-like backend plus Flutter client. Phase 3 adds search, ev
 ## Tech Stack
 - Go 1.24, Gin, PostgreSQL 16, Redis 7, MinIO, Docker Compose
 - Flutter 3.x, Riverpod, Dio, just_audio, go_router
-- No OpenSearch/Kafka in local setup
+- No OpenSearch/Kafka in local setup; Audius read-only via provider-service
 
 ## Local Development (summary)
 See `docs/local-development.md` for full details.
@@ -49,6 +50,7 @@ See `docs/local-development.md` for full details.
 make up            # build & start all services + db/redis/minio
 make migrate-all   # playlist, library, events schemas
 make seed-media    # upload demo mp3s to MinIO
+make reindex-search # restart search-service (catalog seed reload)
 make logs          # follow logs
 make down          # stop stack
 ```
@@ -57,6 +59,7 @@ Health: `curl http://127.0.0.1:8080/health`
 ## Key Environment Variables
 - Shared: `JWT_SECRET`, `POSTGRES_PASSWORD`
 - api-gateway: service URLs for auth/user/catalog/playlist/library/playback/media/events/search/recommendation
+- provider-service: `AUDIOUS_BASE_URL`, `AUDIOUS_APP_NAME`, `CACHE_TTL_SECONDS`
 - events-service: `DATABASE_URL` (events_service), `HTTP_PORT`, `JWT_SECRET`
 - search-service: `CATALOG_SERVICE_URL`, `HTTP_PORT`
 - recommendation-service: `DATABASE_URL` (events_service), `CATALOG_SERVICE_URL`, `JWT_SECRET`, `HTTP_PORT`
@@ -68,6 +71,9 @@ curl http://127.0.0.1:8080/health
 curl "http://127.0.0.1:8080/api/v1/catalog/tracks"
 curl "http://127.0.0.1:8080/api/v1/search?q=love"
 curl http://127.0.0.1:8080/api/v1/recommendations/trending
+curl http://127.0.0.1:8080/api/v1/providers/audius/tracks/trending
+# audius stream (get url):
+curl http://127.0.0.1:8080/api/v1/providers/audius/tracks/<id>/stream
 # needs token:
 curl -H "Authorization: Bearer <token>" -X POST \
   http://127.0.0.1:8080/api/v1/events/track-played \

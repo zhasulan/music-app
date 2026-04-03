@@ -22,9 +22,10 @@ type Router struct {
 	eventsProxy   *httputil.ReverseProxy
 	searchProxy   *httputil.ReverseProxy
 	recoProxy     *httputil.ReverseProxy
+	providerProxy *httputil.ReverseProxy
 }
 
-func NewRouter(authURL, userURL, catalogURL, playlistURL, libraryURL, playbackURL, mediaURL, eventsURL, searchURL, recoURL string) (*Router, error) {
+func NewRouter(authURL, userURL, catalogURL, playlistURL, libraryURL, playbackURL, mediaURL, eventsURL, searchURL, recoURL, providerURL string) (*Router, error) {
 	auth, err := proxyFor(authURL, "/api/v1/auth")
 	if err != nil {
 		return nil, err
@@ -65,6 +66,10 @@ func NewRouter(authURL, userURL, catalogURL, playlistURL, libraryURL, playbackUR
 	if err != nil {
 		return nil, err
 	}
+	provider, err := proxyFor(providerURL, "/api/v1/providers")
+	if err != nil {
+		return nil, err
+	}
 	return &Router{
 		authProxy:     auth,
 		userProxy:     user,
@@ -76,6 +81,7 @@ func NewRouter(authURL, userURL, catalogURL, playlistURL, libraryURL, playbackUR
 		eventsProxy:   events,
 		searchProxy:   search,
 		recoProxy:     reco,
+		providerProxy: provider,
 	}, nil
 }
 
@@ -136,6 +142,9 @@ func (r *Router) RegisterRoutes(router *gin.Engine) {
 
 		api.Any("/recommendations", r.forward(r.recoProxy))
 		api.Any("/recommendations/*path", r.forward(r.recoProxy))
+
+		api.Any("/providers", r.forward(r.providerProxy))
+		api.Any("/providers/*path", r.forward(r.providerProxy))
 	}
 }
 

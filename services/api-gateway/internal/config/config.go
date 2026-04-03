@@ -17,6 +17,7 @@ type Config struct {
 	EventsServiceURL   string `env:"EVENTS_SERVICE_URL" envDefault:"http://events-service:8010"`
 	SearchServiceURL   string `env:"SEARCH_SERVICE_URL" envDefault:"http://search-service:8011"`
 	RecommendationURL  string `env:"RECOMMENDATION_SERVICE_URL" envDefault:"http://recommendation-service:8012"`
+	ProviderServiceURL string `env:"PROVIDER_SERVICE_URL" envDefault:"http://provider-service:8013"`
 }
 
 func Load() *Config {
